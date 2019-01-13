@@ -1,0 +1,324 @@
+
+# Indexar gran cantidad de documentos
+POST /library/books/_bulk
+{ "index": {"_id":1 }}
+{ "title" : "The quick brown fox", "price": 5, "colors": ["red","green","blue"]}
+{ "index": {"_id":2 }}
+{ "title" : "The quick brown fox jumps over the lazy dog", "price": 15, "colors": ["blue","yellow"]}
+{ "index": {"_id":3 }}
+{ "title" : "The quick brown fox jumps over the quick dog", "price": 8, "colors": ["red","blue"]}
+{ "index": {"_id":4 }}
+{ "title" : "Brown fox brown dog", "price": 2, "colors": ["black","yellow","red","blue"]}
+{ "index": {"_id":5 }}
+{ "title" : "Lazy dog", "price": 9, "colors": ["red","blue","green"]}
+
+# Recuperar todos los documentos
+GET /library/books/_search
+
+# Hacer búsquedas con una consulta
+GET /library/books/_search
+{
+  "query": {
+    "match": {
+      "title": "fox"
+    }
+  }
+}
+
+# Hacer búsquedas con una consulta con varios términos
+GET /library/books/_search
+{
+  "query": {
+    "match": {
+      "title": "fox dog"
+    }
+  }
+}
+
+# Buscar una frase exacta
+GET /library/books/_search
+{
+  "query": {
+    "match_phrase": {
+      "title": "brown fox"
+    }
+  }
+}
+
+# Combinación booleana de consultas (como un AND)
+GET /library/books/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "title": "quick"
+          }
+        },
+        {
+           "match_phrase": {
+            "title": "brown fox"
+          }
+        }
+     ]
+      
+    }
+  }
+}
+
+# Negación de consultas
+GET /library/books/_search
+{
+  "query": {
+    "bool": {
+      "must_not": [
+        {
+          "match": {
+            "title": "quick"
+          }
+        },
+        {
+           "match_phrase": {
+            "title": "brown fox"
+          }
+        }
+     ]
+      
+    }
+  }
+}
+
+# Aumentar el peso de una de las consultas
+GET /library/books/_search
+{
+  "query": {
+    "bool": {
+      "should": [
+        {
+          "match_phrase": {
+            "title": {
+              "query": "quick dog"
+            }
+          }
+        },
+        {
+           "match_phrase": {
+            "title": {
+              "query": "lazy dog",
+                      "boost": 3  
+            }
+
+          }
+        }
+     ]
+      
+    }
+  }
+}
+
+# Resaltar los términos que coinciden con la consulta
+GET /library/books/_search
+{
+  "query": {
+    "bool": {
+      "should": [
+        {
+          "match_phrase": {
+            "title": {
+              "query": "quick dog",
+              "boost": 2
+            }
+          }
+        },
+        {
+           "match_phrase": {
+            "title": {
+              "query": "lazy dog"
+            }
+          }
+        }
+     ]
+    }
+  },
+  "highlight": {
+    "fields": {
+      "title": {}
+    }
+  }
+}
+
+# Filter no afecta al score
+GET /library/books/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "title": "dog"
+          }
+        }
+        ],
+        "filter": {
+          "range": {
+            "price": {
+              "gte": 5,
+              "lte": 10
+            }
+          }
+        }
+      
+    }
+  }
+}
+
+# Se puede hacer filter sin consulta
+GET /library/books/_search
+{
+  "query": {
+    "bool": {
+        "filter": {
+          "range": {
+            "price": {
+              "gte": 5
+            }
+          }
+        }
+
+    }
+  }
+}
+
+# El tokenizer divide la frase en tokens discretos
+GET /library/_analyze
+{
+  "tokenizer": "standard",
+  "text": "Brown fox brown dog" 
+}
+
+
+# El filter manipula los tokens
+GET /library/_analyze
+{
+  "tokenizer": "standard",
+  "filter": ["lowercase"], 
+  "text": "Brown fox brown dog" 
+}
+
+# Se pueden usar distintos tokenizer y distintos filter
+GET /library/_analyze
+{
+  "tokenizer": "standard",
+  "filter": ["lowercase","unique"], 
+  "text": "Brown fox brown dog" 
+}
+
+# tokenizer estandard
+GET /library/_analyze
+{
+  "tokenizer": "standard",
+  "filter": ["lowercase"], 
+  "text": "The quick.brown_FOx Jumped! $19.95 @ 3.0"
+}
+
+# letter tokenizer solo considera letras
+GET /library/_analyze
+{
+  "tokenizer": "letter",
+  "filter": ["lowercase"], 
+  "text": "The quick.brown_FOx Jumped! $19.95 @ 3.0"
+}
+
+# standard tokenizer no gestiona bien emails y urls
+GET /library/_analyze
+{
+  "tokenizer": "standard",
+  "text": "elastic@example.com website: https://www.elastic.co"
+}
+
+# uax_url_email tokenizer distingue emails y urls
+GET /library/_analyze
+{
+  "tokenizer": "uax_url_email",
+  "text": "elastic@example.com website: https://www.elastic.co"
+}
+
+# aggregations son otra manera de explorar los datos
+GET /library/_search
+{
+  "size": 0,
+  "aggs": {
+    "popular-colors": {
+      "terms": {
+        "field": "colors.keyword"
+      }
+    }
+  }
+}
+
+# Se puede combinar búsqueda y agregación
+GET /library/_search
+{
+  "query": {
+    "match": {
+      "title": "dog"
+    }
+  }, 
+  "aggs": {
+    "popular-colors": {
+      "terms": {
+        "field": "colors.keyword"
+      }
+    }
+  }
+}
+
+# puede haber varias agregaciones y pueden estar anidadas
+GET /library/_search
+{
+  "size": 0,
+  "aggs": {
+    "price-statistics": {
+      "stats": {
+        "field": "price"
+      }
+    },
+    "popular-colors" : {
+      "terms": {
+        "field": "colors.keyword"
+      },
+      "aggs": {
+        "avg-price-per-color": {
+          "avg": {
+            "field": "price"
+          }
+        }
+      }
+    }
+    
+  }
+}
+
+# se pueden actualizar los documentos volviendo a indexar
+POST /library/books/1
+{
+  "title": "The quick brown fox",
+  "price": 10,
+  "colors": ["red","green","blue"]
+}
+
+# se pueden actualizar los documentos usando _update
+# indicando los campos que cambian
+POST /library/books/1/_update
+{
+  "doc": {
+    "title": "The quick fantastic fox"
+  }
+}
+
+# comprobar que se ha actualizado
+GET /library/books/1
+
+# podemos ver el esquema que se está utilizando para los documentos
+GET /library/_mapping
